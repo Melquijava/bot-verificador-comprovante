@@ -36,8 +36,8 @@ TOKEN = os.getenv("DISCORD_TOKEN")
 if not TOKEN:
     raise ValueError("❌ DISCORD_TOKEN não foi definido. Configure no Railway.")
 
-TESSERACT_PATH = r"C:\Users\melqu\OneDrive\Desktop\pix_verificador_bot\tesseract.exe"
-POPPLER_PATH = r"./poppler/Library/bin"
+# Tesseract e Poppler
+POPPLER_PATH = r"./poppler/Library/bin"  # usado apenas localmente
 CARGO_MAPEAMENTO = {
     "27,90": "Acesso Mensal",
     "95,90": "Acesso Vitalício"
@@ -46,8 +46,9 @@ VALOR_REGEX = r"R\$\s?([0-9]+,[0-9]{2})"
 CATEGORIA_NOME = "⇓━━━━━━━━  Atendimento ━━━━━━━━⇓"
 CANAL_INICIAL = "📥│envio-comprovante"
 
+# Apenas útil se estiver usando arquivos de idioma personalizados
 os.environ["TESSDATA_PREFIX"] = os.path.join(os.getcwd(), "tessdata")
-pytesseract.pytesseract.tesseract_cmd = TESSERACT_PATH
+
 
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="!", intents=intents)
