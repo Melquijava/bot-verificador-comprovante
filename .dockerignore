@@ -1,0 +1,24 @@
+# Ignora o ambiente virtual local
+venv/
+
+# Ignora arquivos do VS Code
+.vscode/
+
+# Ignora arquivos de cache do Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignora arquivos temporários
+*.log
+*.tmp
+*.bak
+
+# Ignora configurações locais
+.env
+.DS_Store
+
+# Ignora pastas de saída
+dist/
+build/
