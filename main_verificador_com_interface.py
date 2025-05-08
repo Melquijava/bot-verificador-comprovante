@@ -108,7 +108,7 @@ async def on_message(message):
                         await message.reply("❌ Imagem parece ser um print. Envie o comprovante original (PDF ou imagem exportada).", delete_after=15)
                         os.remove(path)
                         return
-                    texto = pytesseract.image_to_string(img, lang="por")
+                    texto = pytesseract.image_to_string(img)
                 os.remove(path)
 
             elif filename.endswith(".pdf"):
@@ -119,7 +119,7 @@ async def on_message(message):
                 for i, img in enumerate(imagens):
                     temp_img = f"pdf_temp/{uid}_{i}.png"
                     img.save(temp_img, "PNG")
-                    texto += pytesseract.image_to_string(Image.open(temp_img), lang="por")
+                    texto += pytesseract.image_to_string(Image.open(temp_img))
                     os.remove(temp_img)
                 os.remove(path)
             else:
