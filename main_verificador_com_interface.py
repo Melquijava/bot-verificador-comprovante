@@ -4,6 +4,27 @@ import discord
 import pytesseract
 import re
 import uuid
+import asyncio
+
+
+from PIL.ExifTags import TAGS
+
+# Garante que as pastas existem
+os.makedirs("images", exist_ok=True)
+os.makedirs("pdf_temp", exist_ok=True)
+
+def is_screenshot(path):
+    try:
+        image = Image.open(path)
+        exif_data = image.getexif()
+        for tag_id, value in exif_data.items():
+            tag = TAGS.get(tag_id, tag_id)
+            if tag == "Software" and "screenshot" in str(value).lower():
+                return True
+        return False
+    except Exception:
+        return False
+
 from PIL import Image
 from discord.ext import commands
 from dotenv import load_dotenv
@@ -19,7 +40,7 @@ TESSERACT_PATH = r"C:\Users\melqu\OneDrive\Desktop\pix_verificador_bot\tesseract
 POPPLER_PATH = r"./poppler/Library/bin"
 CARGO_MAPEAMENTO = {
     "27,90": "Acesso Mensal",
-    "95,90": "Acesso Vitalicio"
+    "95,90": "Acesso Vitalício"
 }
 VALOR_REGEX = r"R\$\s?([0-9]+,[0-9]{2})"
 CATEGORIA_NOME = "⇓━━━━━━━━  Atendimento ━━━━━━━━⇓"
@@ -108,7 +129,7 @@ async def on_message(message):
                         await message.reply("❌ Imagem parece ser um print. Envie o comprovante original (PDF ou imagem exportada).", delete_after=15)
                         os.remove(path)
                         return
-                    texto = pytesseract.image_to_string(img)
+                    texto = pytesseract.image_to_string(img, lang="por")
                 os.remove(path)
 
             elif filename.endswith(".pdf"):
@@ -119,7 +140,7 @@ async def on_message(message):
                 for i, img in enumerate(imagens):
                     temp_img = f"pdf_temp/{uid}_{i}.png"
                     img.save(temp_img, "PNG")
-                    texto += pytesseract.image_to_string(Image.open(temp_img))
+                    texto += pytesseract.image_to_string(Image.open(temp_img), lang="por")
                     os.remove(temp_img)
                 os.remove(path)
             else:
@@ -144,3 +165,12 @@ async def on_message(message):
                 await message.reply("❌ Não consegui identificar o valor no comprovante. Envie um comprovante legível.", delete_after=15)
 
 bot.run(TOKEN)
+
+
+async def agendar_remocao(member, cargo):
+    await asyncio.sleep(30 * 24 * 60 * 60)  # 30 dias
+    await member.remove_roles(cargo)
+    try:
+        await member.send(f"⏳ Seu acesso **{cargo.name}** expirou após 30 dias.")
+    except:
+        pass
