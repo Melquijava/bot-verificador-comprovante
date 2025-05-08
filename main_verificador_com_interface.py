@@ -46,9 +46,6 @@ VALOR_REGEX = r"R\$\s?([0-9]+,[0-9]{2})"
 CATEGORIA_NOME = "⇓━━━━━━━━  Atendimento ━━━━━━━━⇓"
 CANAL_INICIAL = "📥│envio-comprovante"
 
-# Apenas útil se estiver usando arquivos de idioma personalizados
-os.environ["TESSDATA_PREFIX"] = os.path.join(os.getcwd(), "tessdata")
-
 
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="!", intents=intents)
