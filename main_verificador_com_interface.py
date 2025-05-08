@@ -81,17 +81,34 @@ async def on_interaction(interaction: discord.Interaction):
     guild = interaction.guild
     categoria = discord.utils.get(guild.categories, name=CATEGORIA_NOME)
 
+    if not categoria:
+        await interaction.response.send_message("❌ Categoria de atendimento não encontrada.", ephemeral=True)
+        return
+
+    # Define nome do canal esperado
+    nome = ""
     if custom_id == "verificar":
         nome = f"🔐│verificacao-{user.name}".replace(" ", "-").lower()
-        canal = await criar_canal_privado(guild, nome, user, categoria)
+    elif custom_id == "suporte":
+        nome = f"❓│suporte-{user.name}".replace(" ", "-").lower()
+
+    # Verifica se canal já existe
+    canal_existente = discord.utils.get(guild.text_channels, name=nome)
+    if canal_existente:
+        await interaction.response.send_message("⚠️ Você já possui um canal aberto.", ephemeral=True)
+        return
+
+    # Criação de canal e resposta
+    canal = await criar_canal_privado(guild, nome, user, categoria)
+
+    if custom_id == "verificar":
         await canal.send(f"{user.mention} Envie seu comprovante de pagamento (PDF ou imagem, sem prints).")
         await interaction.response.send_message("✅ Canal de verificação criado!", ephemeral=True)
 
     elif custom_id == "suporte":
-        nome = f"❓│suporte-{user.name}".replace(" ", "-").lower()
-        canal = await criar_canal_privado(guild, nome, user, categoria)
         await canal.send(f"{user.mention} 👋 Como podemos te ajudar? Envie sua dúvida.")
         await interaction.response.send_message("✅ Canal de suporte criado!", ephemeral=True)
+
 
 async def criar_canal_privado(guild, nome_canal, user, categoria):
     overwrites = {
