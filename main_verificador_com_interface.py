@@ -1,4 +1,3 @@
-
 import os
 import discord
 import pytesseract
@@ -6,12 +5,32 @@ import re
 import uuid
 import asyncio
 
-
 from PIL.ExifTags import TAGS
+from PIL import Image
+from discord.ext import commands
+from dotenv import load_dotenv
+from pdf2image import convert_from_path
+
+# === CONFIGURAÇÕES ===
+load_dotenv()
+TOKEN = os.getenv("DISCORD_TOKEN")
+if not TOKEN:
+    raise ValueError("❌ DISCORD_TOKEN não foi definido. Configure no Railway.")
+
+POPPLER_PATH = r"./poppler/Library/bin"  # usado apenas localmente
+CARGO_MAPEAMENTO = {
+    "37,90": "Acesso Vitalício"
+}
+VALOR_REGEX = r"R\$\s?([0-9]+,[0-9]{2})"
+CATEGORIA_NOME = "⇓━━━━━━━━  Atendimento ━━━━━━━━⇓"
+CANAL_INICIAL = "📥│envio-comprovante"
 
 # Garante que as pastas existem
 os.makedirs("images", exist_ok=True)
 os.makedirs("pdf_temp", exist_ok=True)
+
+intents = discord.Intents.all()
+bot = commands.Bot(command_prefix="!", intents=intents)
 
 def is_screenshot(path):
     try:
@@ -24,31 +43,6 @@ def is_screenshot(path):
         return False
     except Exception:
         return False
-
-from PIL import Image
-from discord.ext import commands
-from dotenv import load_dotenv
-from pdf2image import convert_from_path
-
-# === CONFIGURAÇÕES ===
-load_dotenv()
-TOKEN = os.getenv("DISCORD_TOKEN")
-if not TOKEN:
-    raise ValueError("❌ DISCORD_TOKEN não foi definido. Configure no Railway.")
-
-# Tesseract e Poppler
-POPPLER_PATH = r"./poppler/Library/bin"  # usado apenas localmente
-CARGO_MAPEAMENTO = {
-    "27,90": "Acesso Mensal",
-    "95,90": "Acesso Vitalício"
-}
-VALOR_REGEX = r"R\$\s?([0-9]+,[0-9]{2})"
-CATEGORIA_NOME = "⇓━━━━━━━━  Atendimento ━━━━━━━━⇓"
-CANAL_INICIAL = "📥│envio-comprovante"
-
-
-intents = discord.Intents.all()
-bot = commands.Bot(command_prefix="!", intents=intents)
 
 @bot.event
 async def on_ready():
@@ -85,30 +79,21 @@ async def on_interaction(interaction: discord.Interaction):
         await interaction.response.send_message("❌ Categoria de atendimento não encontrada.", ephemeral=True)
         return
 
-    # Define nome do canal esperado
-    nome = ""
-    if custom_id == "verificar":
-        nome = f"🔐│verificacao-{user.name}".replace(" ", "-").lower()
-    elif custom_id == "suporte":
-        nome = f"❓│suporte-{user.name}".replace(" ", "-").lower()
-
-    # Verifica se canal já existe
+    nome = f"{'🔐│verificacao' if custom_id == 'verificar' else '❓│suporte'}-{user.name}".replace(" ", "-").lower()
     canal_existente = discord.utils.get(guild.text_channels, name=nome)
+
     if canal_existente:
         await interaction.response.send_message("⚠️ Você já possui um canal aberto.", ephemeral=True)
         return
 
-    # Criação de canal e resposta
     canal = await criar_canal_privado(guild, nome, user, categoria)
 
     if custom_id == "verificar":
         await canal.send(f"{user.mention} Envie seu comprovante de pagamento (PDF ou imagem, sem prints).")
         await interaction.response.send_message("✅ Canal de verificação criado!", ephemeral=True)
-
     elif custom_id == "suporte":
         await canal.send(f"{user.mention} 👋 Como podemos te ajudar? Envie sua dúvida.")
         await interaction.response.send_message("✅ Canal de suporte criado!", ephemeral=True)
-
 
 async def criar_canal_privado(guild, nome_canal, user, categoria):
     overwrites = {
@@ -175,17 +160,8 @@ async def on_message(message):
                         else:
                             await message.reply(f"⚠️ Cargo **{nome_cargo}** não foi encontrado.", delete_after=20)
                         return
-                await message.reply("❌ Valor não corresponde a nenhum plano. Verifique o comprovante.", delete_after=15)
+                await message.reply("❌ Valor não corresponde ao plano vitalício. Verifique o comprovante.", delete_after=15)
             else:
                 await message.reply("❌ Não consegui identificar o valor no comprovante. Envie um comprovante legível.", delete_after=15)
 
 bot.run(TOKEN)
-
-
-async def agendar_remocao(member, cargo):
-    await asyncio.sleep(30 * 24 * 60 * 60)  # 30 dias
-    await member.remove_roles(cargo)
-    try:
-        await member.send(f"⏳ Seu acesso **{cargo.name}** expirou após 30 dias.")
-    except:
-        pass
