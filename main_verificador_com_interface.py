@@ -3,7 +3,6 @@ import discord
 import pytesseract
 import re
 import uuid
-import asyncio
 
 from PIL.ExifTags import TAGS
 from PIL import Image
