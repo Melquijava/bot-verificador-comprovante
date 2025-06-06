@@ -23,7 +23,7 @@ VALOR_REGEX = r"R\$\s?([0-9]+,[0-9]{2})"
 CATEGORIA_NOME = "⇓━━━━━━━━  Atendimento ━━━━━━━━⇓"
 CANAL_INICIAL = "📥│envio-comprovante"
 
-# Garante que as pastas existem
+# Garante que as pastas existem somente no ambiente local
 os.makedirs("images", exist_ok=True)
 os.makedirs("pdf_temp", exist_ok=True)
 
