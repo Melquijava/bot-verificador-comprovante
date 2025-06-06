@@ -1,17 +1,16 @@
 import os
 import discord
-import pytesseract
 import re
 import uuid
 import json
 import hashlib
 import asyncio
+import fitz  # PyMuPDF
 
 from PIL.ExifTags import TAGS
 from PIL import Image
 from discord.ext import commands
 from dotenv import load_dotenv
-from pdf2image import convert_from_path
 
 # === CONFIGURAÇÕES ===
 load_dotenv()
@@ -27,7 +26,6 @@ CATEGORIA_NOME = "⇓━━━━━━━━  Atendimento ━━━━━━━
 CANAL_INICIAL = "📥│envio-comprovante"
 ARQUIVO_HASH = "usados.json"
 
-# Garante que as pastas existem
 os.makedirs("images", exist_ok=True)
 os.makedirs("pdf_temp", exist_ok=True)
 if not os.path.exists(ARQUIVO_HASH):
@@ -50,10 +48,8 @@ def is_screenshot(path):
         return False
 
 def validar_texto(texto):
-    texto = texto.lower().replace("", " ").replace("  ", " ").strip()
+    texto = texto.lower().replace("\n", " ").replace("  ", " ").strip()
     valor_ok = "r$ 37,90" in texto
-
-    # Lista de variações possíveis para o nome do recebedor
     nomes_aceitos = [
         "leandro de deus chaves",
         "leandro  de  deus chaves",
@@ -62,8 +58,7 @@ def validar_texto(texto):
         "leandro d chaves",
         "leandro de d chaves"
     ]
-
-    nome_ok = any(n in texto for n in nomes_aceitos) or "leandro" in texto and "chaves" in texto
+    nome_ok = any(n in texto for n in nomes_aceitos) or ("leandro" in texto and "chaves" in texto)
     return valor_ok and nome_ok
 
 def verificar_duplicado(texto):
@@ -76,6 +71,16 @@ def verificar_duplicado(texto):
     with open(ARQUIVO_HASH, "w") as f:
         json.dump(dados, f, indent=4)
     return False
+
+def extrair_texto_pdf(path):
+    texto = ""
+    try:
+        with fitz.open(path) as doc:
+            for pagina in doc:
+                texto += pagina.get_text()
+    except Exception as e:
+        print(f"Erro ao extrair texto PDF: {e}")
+    return texto.lower()
 
 @bot.event
 async def on_ready():
@@ -165,25 +170,15 @@ async def on_message(message):
                         await message.reply("❌ Imagem parece ser um print. Envie o comprovante original (PDF ou imagem exportada).", delete_after=15)
                         os.remove(path)
                         return
-                    texto = pytesseract.image_to_string(img, lang="por")
+                    texto = pytesseract.image_to_string(img)
                 os.remove(path)
 
             elif filename.endswith(".pdf"):
                 path = f"pdf_temp/{uid}_{filename}"
                 await attachment.save(path)
-                texto = ""
-                try:
-                    imagens = convert_from_path(path)
-                    for i, img in enumerate(imagens):
-                        temp_img = f"pdf_temp/{uid}_{i}.png"
-                        img.save(temp_img, "PNG")
-                        texto += pytesseract.image_to_string(Image.open(temp_img), lang="por")
-                        os.remove(temp_img)
-                except Exception as e:
-                    await message.reply(f"❌ Erro ao processar PDF: {e}", delete_after=15)
-                    os.remove(path)
-                    return
+                texto = extrair_texto_pdf(path)
                 os.remove(path)
+
             else:
                 await message.reply("⚠️ Formato não suportado. Envie uma imagem (.png, .jpg) ou PDF.", delete_after=10)
                 return
