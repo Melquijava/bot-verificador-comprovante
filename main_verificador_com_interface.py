@@ -5,6 +5,7 @@ import re
 import uuid
 import json
 import hashlib
+import asyncio
 
 from PIL.ExifTags import TAGS
 from PIL import Image
@@ -50,10 +51,9 @@ def is_screenshot(path):
 
 def validar_texto(texto):
     texto = texto.lower()
-    termos_ok = any(t in texto for t in ["comprovante", "pagamento", "transação", "confirmação"])
     valor_ok = "r$ 37,90" in texto
     nome_ok = "leandro de deus chaves" in texto
-    return valor_ok and nome_ok and termos_ok
+    return valor_ok and nome_ok
 
 def verificar_duplicado(texto):
     hash_texto = hashlib.sha256(texto.encode()).hexdigest()
@@ -111,7 +111,7 @@ async def on_interaction(interaction: discord.Interaction):
     canal = await criar_canal_privado(guild, nome, user, categoria)
 
     if custom_id == "verificar":
-        await canal.send(f"{user.mention} Envie seu comprovante de pagamento (PDF ou imagem, sem prints).")
+        await canal.send(f"{user.mention} Envie seu comprovante de pagamento em PDF ou imagem original (sem prints), preferencialmente o arquivo gerado pelo aplicativo do banco.")
         await interaction.response.send_message("✅ Canal de verificação criado!", ephemeral=True)
     elif custom_id == "suporte":
         await canal.send(f"{user.mention} 👋 Como podemos te ajudar? Envie sua dúvida.")
@@ -134,6 +134,9 @@ async def on_message(message):
         return
 
     if message.attachments:
+        await message.reply("🔎 Verificando seu comprovante, aguarde alguns segundos...", delete_after=5)
+        await asyncio.sleep(5)
+
         for attachment in message.attachments:
             filename = attachment.filename.lower()
             uid = str(uuid.uuid4())
