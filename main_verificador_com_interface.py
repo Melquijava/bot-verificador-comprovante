@@ -50,9 +50,20 @@ def is_screenshot(path):
         return False
 
 def validar_texto(texto):
-    texto = texto.lower()
+    texto = texto.lower().replace("", " ").replace("  ", " ").strip()
     valor_ok = "r$ 37,90" in texto
-    nome_ok = "leandro de deus chaves" in texto
+
+    # Lista de variações possíveis para o nome do recebedor
+    nomes_aceitos = [
+        "leandro de deus chaves",
+        "leandro  de  deus chaves",
+        "leandro de  deus  chaves",
+        "leandro chaves",
+        "leandro d chaves",
+        "leandro de d chaves"
+    ]
+
+    nome_ok = any(n in texto for n in nomes_aceitos) or "leandro" in texto and "chaves" in texto
     return valor_ok and nome_ok
 
 def verificar_duplicado(texto):
