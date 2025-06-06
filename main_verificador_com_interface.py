@@ -16,7 +16,6 @@ TOKEN = os.getenv("DISCORD_TOKEN")
 if not TOKEN:
     raise ValueError("❌ DISCORD_TOKEN não foi definido. Configure no Railway.")
 
-POPPLER_PATH = r"./poppler/Library/bin"  # usado apenas localmente
 CARGO_MAPEAMENTO = {
     "37,90": "Acesso Vitalício"
 }
@@ -134,17 +133,29 @@ async def on_message(message):
             elif filename.endswith(".pdf"):
                 path = f"pdf_temp/{uid}_{filename}"
                 await attachment.save(path)
-                imagens = convert_from_path(path, poppler_path=POPPLER_PATH)
                 texto = ""
-                for i, img in enumerate(imagens):
-                    temp_img = f"pdf_temp/{uid}_{i}.png"
-                    img.save(temp_img, "PNG")
-                    texto += pytesseract.image_to_string(Image.open(temp_img), lang="por")
-                    os.remove(temp_img)
+
+                try:
+                    imagens = convert_from_path(path)  # Sem o poppler_path para funcionar no Railway
+                    for i, img in enumerate(imagens):
+                        temp_img = f"pdf_temp/{uid}_{i}.png"
+                        img.save(temp_img, "PNG")
+                        texto += pytesseract.image_to_string(Image.open(temp_img), lang="por")
+                        os.remove(temp_img)
+                except Exception as e:
+                    await message.reply(f"❌ Erro ao processar PDF: {e}", delete_after=15)
+                    os.remove(path)
+                    return
+
                 os.remove(path)
+
             else:
                 await message.reply("⚠️ Formato não suportado. Envie uma imagem (.png, .jpg) ou PDF.", delete_after=10)
                 return
+
+            # DEBUG TEMPORÁRIO
+            print("🧾 TEXTO EXTRAÍDO DO COMPROVANTE:")
+            print(texto)
 
             encontrados = re.findall(VALOR_REGEX, texto)
             if encontrados:
