@@ -3,6 +3,8 @@ import discord
 import pytesseract
 import re
 import uuid
+import json
+import hashlib
 
 from PIL.ExifTags import TAGS
 from PIL import Image
@@ -22,10 +24,14 @@ CARGO_MAPEAMENTO = {
 VALOR_REGEX = r"R\$\s?([0-9]+,[0-9]{2})"
 CATEGORIA_NOME = "⇓━━━━━━━━  Atendimento ━━━━━━━━⇓"
 CANAL_INICIAL = "📥│envio-comprovante"
+ARQUIVO_HASH = "usados.json"
 
 # Garante que as pastas existem
 os.makedirs("images", exist_ok=True)
 os.makedirs("pdf_temp", exist_ok=True)
+if not os.path.exists(ARQUIVO_HASH):
+    with open(ARQUIVO_HASH, "w") as f:
+        json.dump({"hashes": []}, f)
 
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix="!", intents=intents)
@@ -41,6 +47,24 @@ def is_screenshot(path):
         return False
     except Exception:
         return False
+
+def validar_texto(texto):
+    texto = texto.lower()
+    termos_ok = any(t in texto for t in ["comprovante", "pagamento", "transação", "confirmação"])
+    valor_ok = "r$ 37,90" in texto
+    nome_ok = "leandro de deus chaves" in texto
+    return valor_ok and nome_ok and termos_ok
+
+def verificar_duplicado(texto):
+    hash_texto = hashlib.sha256(texto.encode()).hexdigest()
+    with open(ARQUIVO_HASH, "r") as f:
+        dados = json.load(f)
+    if hash_texto in dados["hashes"]:
+        return True
+    dados["hashes"].append(hash_texto)
+    with open(ARQUIVO_HASH, "w") as f:
+        json.dump(dados, f, indent=4)
+    return False
 
 @bot.event
 async def on_ready():
@@ -134,9 +158,8 @@ async def on_message(message):
                 path = f"pdf_temp/{uid}_{filename}"
                 await attachment.save(path)
                 texto = ""
-
                 try:
-                    imagens = convert_from_path(path)  # Sem o poppler_path para funcionar no Railway
+                    imagens = convert_from_path(path)
                     for i, img in enumerate(imagens):
                         temp_img = f"pdf_temp/{uid}_{i}.png"
                         img.save(temp_img, "PNG")
@@ -146,16 +169,18 @@ async def on_message(message):
                     await message.reply(f"❌ Erro ao processar PDF: {e}", delete_after=15)
                     os.remove(path)
                     return
-
                 os.remove(path)
-
             else:
                 await message.reply("⚠️ Formato não suportado. Envie uma imagem (.png, .jpg) ou PDF.", delete_after=10)
                 return
 
-            # DEBUG TEMPORÁRIO
-            print("🧾 TEXTO EXTRAÍDO DO COMPROVANTE:")
-            print(texto)
+            if not validar_texto(texto):
+                await message.reply("❌ Comprovante inválido. Deve conter valor, nome e dados da transação.", delete_after=20)
+                return
+
+            if verificar_duplicado(texto):
+                await message.reply("❌ Este comprovante já foi utilizado.", delete_after=20)
+                return
 
             encontrados = re.findall(VALOR_REGEX, texto)
             if encontrados:
@@ -170,8 +195,6 @@ async def on_message(message):
                         else:
                             await message.reply(f"⚠️ Cargo **{nome_cargo}** não foi encontrado.", delete_after=20)
                         return
-                await message.reply("❌ Valor não corresponde ao plano vitalício. Verifique o comprovante.", delete_after=15)
-            else:
-                await message.reply("❌ Não consegui identificar o valor no comprovante. Envie um comprovante legível.", delete_after=15)
+            await message.reply("❌ Não consegui identificar o valor no comprovante. Envie um comprovante legível.", delete_after=15)
 
 bot.run(TOKEN)
